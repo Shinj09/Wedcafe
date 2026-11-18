@@ -1,0 +1,166 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#14403f"><link rel="manifest" href="manifest.json">
+<title>Wednesday Cafe POS</title>
+<style>
+:root{--sb:#14403f;--g:#b8902f;--bg:#f5f3ee;--cd:#dde3df;--tx:#1d2b2a;--mu:#6b7a78;--wh:#fff;--rd:#c0392b;--gr:#2e7d32}
+body.dark{--bg:#101c1c;--cd:#1e2f2e;--tx:#eef2f0;--mu:#9bb0ac;--wh:#162524}
+*{box-sizing:border-box;margin:0;font-family:system-ui,Segoe UI,sans-serif}
+body{background:var(--bg);color:var(--tx);height:100vh;display:flex;overflow:hidden;font-size:14px}
+#sb{width:210px;background:var(--sb);color:#cfe0dd;display:flex;flex-direction:column;padding:16px 12px;flex-shrink:0;overflow:auto}
+.lg{color:#fff;font-weight:700;font-size:17px;margin:0 0 18px 8px}.lg span{color:var(--g)}
+.nv{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:8px;cursor:pointer;margin:2px 0}
+.nv.on{background:var(--g);color:#fff;font-weight:600}
+.pf{margin-top:auto;background:#1c5250;border-radius:10px;padding:12px;text-align:center;font-size:12px}
+.bd{background:var(--g);color:#fff;border-radius:9px;font-size:10px;padding:0 6px;margin-left:auto}
+#mn{flex:1;overflow:auto;padding:16px}
+.gd{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:12px}
+.ct{background:var(--cd);border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer;border:0;color:var(--tx);font-size:14px}
+.ct:active{background:var(--g);color:#fff}.ct .e{font-size:40px;display:block;margin-bottom:4px}
+.pn{background:var(--wh);border-radius:14px;padding:14px;margin-bottom:12px}
+.bt{background:var(--g);color:#fff;border:0;border-radius:8px;padding:11px;width:100%;font-weight:600;cursor:pointer;margin-top:8px;font-size:14px}
+.bt.s{background:var(--cd);color:var(--tx)}.bt.d{background:var(--rd)}
+input,select{padding:9px;border-radius:8px;border:1px solid #0002;background:var(--wh);color:var(--tx);width:100%;font-size:14px}
+.rw{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:5px 0}
+.two{display:grid;grid-template-columns:1fr 310px;gap:14px;align-items:start}
+.two.b{grid-template-columns:1fr 340px}.two.s{grid-template-columns:200px 1fr}
+.dg{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.qb{width:26px;height:26px;border-radius:50%;border:0;background:var(--g);color:#fff}
+.tag{padding:2px 8px;border-radius:6px;font-size:11px;color:#fff}.tag.open{background:#e67e22}.tag.paid{background:var(--gr)}
+.tg{position:relative;width:42px;height:24px;display:inline-block}.tg input{opacity:0;width:0;height:0}
+.tg span{position:absolute;inset:0;background:#9aa;border-radius:24px;transition:.2s}
+.tg span:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.tg input:checked+span{background:var(--g)}.tg input:checked+span:before{transform:translateX(18px)}
+.bub{max-width:75%;padding:8px 12px;border-radius:12px;background:var(--cd);margin:6px 0}.bub.me{background:var(--g);color:#fff;margin-left:auto}
+#md{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:15}
+#bx{background:var(--wh);border-radius:16px;padding:20px;width:310px;max-width:92%}
+#lgn{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex}
+.lgl{flex:1;background:var(--cd);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:18px;text-align:center;padding:20px;font-weight:600}
+.lgr{flex:1;display:flex;flex-direction:column;justify-content:center;padding:40px;max-width:480px;gap:10px}
+#rc{display:none}
+@media(max-width:900px){.two,.two.b,.two.s{grid-template-columns:1fr}}
+@media(max-width:800px){body{flex-direction:column-reverse}#sb{width:100%;flex-direction:row;padding:4px;overflow-x:auto}.lg,.pf,.ot{display:none}.nv{flex-direction:column;gap:2px;font-size:10px;padding:6px 10px;flex:0 0 auto}.lgl{display:none}.lgr{max-width:none}}
+@media print{body{display:block;height:auto;overflow:visible}body>*:not(#rc){display:none!important}#rc{display:block;font:13px monospace;width:72mm}}
+</style></head><body>
+<div id="sb"></div><div id="mn"></div><div id="rc"></div>
+<div id="md" onclick="if(event.target==this)md()"><div id="bx"></div></div>
+<div id="lgn"><div class="lgl"><div style="font-size:90px">☕</div>Wednesday Cafe<br><small style="font-weight:400">Manage sales, orders and bills</small></div>
+<div class="lgr"><h2>Welcome Back!</h2><small style="color:var(--mu)">Sign in to continue (first time: admin / 1234)</small>
+<input id="li" placeholder="Sales ID"><input id="lp" type="password" placeholder="Password" onkeydown="if(event.key=='Enter')login()">
+<div id="le" style="color:var(--rd)"></div><button class="bt" onclick="login()">Sign in</button></div></div>
+<script>
+const $=s=>document.querySelector(s),K='wcpos1';
+const D={menu:[["Espresso",150,"Coffee","☕"],["Cappuccino",220,"Coffee","☕"],["Latte",240,"Coffee","🥛"],["Iced Tea",180,"Drinks","🧋"],["Lemonade",150,"Drinks","🍋"],["Veg Momo",200,"Food","🥟"],["Chicken Momo",250,"Food","🥟"],["Club Sandwich",320,"Food","🥪"],["French Fries",180,"Food","🍟"],["Burger",350,"Food","🍔"],["Pizza",450,"Food","🍕"],["Brownie",160,"Dessert","🍫"],["Cheesecake",280,"Dessert","🍰"]].map((m,i)=>({id:i+1,n:m[0],p:m[1],c:m[2],e:m[3]})),
+orders:[],seq:1,cfg:{tax:13,tables:10,cur:"Rs",pay:{Cash:1,Card:1,QR:1},dark:0,fs:14},users:[{id:"admin",name:"Admin",pw:"1234",role:"admin"}],msgs:[],notes:[],nu:0,me:null};
+let S=JSON.parse(localStorage.getItem(K)||"{}");S={...D,...S,cfg:{...D.cfg,...S.cfg}};
+if(S.cfg.pin){S.users[0].pw=S.cfg.pin;delete S.cfg.pin}
+const save=()=>localStorage.setItem(K,JSON.stringify(S));
+const CI={Coffee:"☕",Drinks:"🥤",Food:"🍽️",Dessert:"🍰"},ico=m=>m.e||CI[m.c]||"🍴",cats=()=>[...new Set(S.menu.map(m=>m.c))];
+const f=n=>S.cfg.cur+" "+(Math.round(n*100)/100),esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const me=()=>S.users.find(x=>x.id==S.me),tm=t=>new Date(t).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+let pg="dash",fc=null,q="",cart={},ctype="Dine-in",table="Table 1",cust="",disc=0,editId=null,sel=null,st="prof",rg="today",bf="all",bq="",mq=1;
+const NV=[["dash","📊","Dashboard"],["food","🍔","Food & Drinks"],["msg","💬","Messages"],["bill","🧾","Bills"],["set","⚙️","Settings"],["note","🔔","Notifications"],["help","🛟","Support"]];
+const go=p=>{pg=p;if(p=="note"){S.nu=0;save()}draw()};
+const md=h=>{$("#md").style.display=h?"flex":"none";$("#bx").innerHTML=h||""};
+const note=t=>{S.notes.unshift({t,time:Date.now()});S.notes=S.notes.slice(0,50);S.nu++};
+function login(){const i=$("#li").value.trim().toLowerCase(),p=$("#lp").value,u=S.users.find(x=>x.id.toLowerCase()==i&&x.pw==p);
+ if(!u){$("#le").textContent="Wrong ID or password";return}S.me=u.id;save();$("#lp").value="";$("#le").textContent="";draw()}
+function tot(){let sub=0;for(const id in cart){const m=S.menu.find(x=>x.id==id);if(m)sub+=m.p*cart[id]}const d=Math.min(disc,sub),tx=(sub-d)*S.cfg.tax/100;return{sub,d,tx,total:sub-d+tx}}
+const add=(id,n=1)=>{cart[id]=(cart[id]||0)+n;draw()},qty=(id,d)=>{cart[id]+=d;if(cart[id]<=0)delete cart[id];draw()};
+const clr=()=>{cart={};disc=0;editId=null;cust="";ctype="Dine-in";table="Table 1";draw()};
+function build(s,p){const t=tot();return{id:editId||S.seq,type:ctype,table:ctype=="Dine-in"?table:"Takeaway",cust:cust.trim(),staff:me().name,status:s,pay:p||"",time:Date.now(),
+ items:Object.keys(cart).map(id=>{const m=S.menu.find(x=>x.id==id);return{n:m.n,p:m.p,q:cart[id],e:ico(m)}}),sub:t.sub,disc:t.d,tax:t.tx,total:t.total}}
+function commit(o){if(editId)S.orders=S.orders.filter(x=>x.id!=editId);else S.seq++;S.orders.unshift(o);note(`Order #${o.id} ${o.status=="paid"?"paid ("+o.pay+") "+f(o.total):"placed for "+o.table}`);clr()}
+const hold=()=>commit(build("open")),pay=m=>{const o=build("paid",m);commit(o);receipt(o)};
+function payBill(id,m){const o=S.orders.find(x=>x.id==id);o.status="paid";o.pay=m;note(`Order #${id} paid (${m}) ${f(o.total)}`);save();receipt(o);draw()}
+function edit(id){const o=S.orders.find(x=>x.id==id);cart={};o.items.forEach(i=>{const m=S.menu.find(x=>x.n==i.n);if(m)cart[m.id]=i.q});
+ ctype=o.type||"Dine-in";table=o.table;cust=o.cust||"";disc=o.disc;editId=id;pg="food";draw()}
+function delOrder(id){if(confirm("Delete order #"+id+"?")){S.orders=S.orders.filter(o=>o.id!=id);sel=null;save();draw()}}
+function receipt(o){$("#rc").innerHTML=`<center><b>WEDNESDAY CAFE</b><br>Receipt #${o.id}<br>${new Date(o.time).toLocaleString()}<br>${esc(o.table)}${o.cust?" · "+esc(o.cust):""}<br>Served by ${esc(o.staff||"")}</center><hr>
+ ${o.items.map(i=>`${esc(i.n)}<br>&nbsp;${i.q} x ${i.p} <span style="float:right">${i.q*i.p}</span><br>`).join("")}<hr>
+ Subtotal<span style="float:right">${o.sub}</span><br>Discount<span style="float:right">${o.disc}</span><br>Tax ${S.cfg.tax}%<span style="float:right">${o.tax.toFixed(2)}</span><br>
+ <b>TOTAL<span style="float:right">${o.total.toFixed(2)}</span></b><br>Paid: ${o.pay||"-"}<hr><center>Thank you! Visit again ☕</center>`;setTimeout(()=>print(),150)}
+function item(id){const m=S.menu.find(x=>x.id==id);mq=1;md(`<div style="text-align:center"><div style="font-size:80px">${ico(m)}</div><h3>${esc(m.n)}</h3><div style="color:var(--g);font-size:20px;font-weight:700">${f(m.p)}</div>
+ <div class="rw" style="justify-content:center;gap:16px;margin:14px 0"><button class="bt s" style="width:44px;margin:0" onclick="mq=Math.max(1,mq-1);$('#mq').textContent=mq">−</button><b id="mq" style="font-size:20px">1</b><button class="bt s" style="width:44px;margin:0" onclick="mq++;$('#mq').textContent=mq">+</button></div>
+ <button class="bt" onclick="add(${id},mq);md()">Add to Order</button></div>`)}
+
+function pCart(){const ids=Object.keys(cart),t=tot(),P=Object.keys(S.cfg.pay).filter(k=>S.cfg.pay[k]);
+ return`<div class="pn"><b>Order #${editId||S.seq}</b>
+ <div class="rw"><select onchange="ctype=this.value;draw()">${["Dine-in","Takeaway"].map(x=>`<option ${x==ctype?"selected":""}>${x}</option>`).join("")}</select>
+ ${ctype=="Dine-in"?`<select onchange="table=this.value">${Array.from({length:S.cfg.tables},(_,i)=>"Table "+(i+1)).map(x=>`<option ${x==table?"selected":""}>${x}</option>`).join("")}</select>`:""}</div>
+ <input placeholder="Customer name (optional)" value="${esc(cust)}" onchange="cust=this.value">
+ ${ids.length?ids.map(id=>{const m=S.menu.find(x=>x.id==id);return`<div class="rw"><span>${ico(m)} ${esc(m.n)}</span><span><button class="qb" onclick="qty(${id},-1)">−</button> ${cart[id]} <button class="qb" onclick="qty(${id},1)">+</button></span><b>${f(m.p*cart[id])}</b></div>`}).join(""):'<p style="color:var(--mu);margin:10px 0">Tap items to add</p>'}
+ <div class="rw"><span>Discount</span><input type="number" min="0" style="width:90px" value="${disc||""}" onchange="disc=+this.value||0;draw()"></div>
+ <div class="rw"><span>Subtotal</span><span>${f(t.sub)}</span></div><div class="rw"><span>Tax ${S.cfg.tax}%</span><span>${f(t.tx)}</span></div>
+ <div class="rw" style="font-size:19px;font-weight:700"><span>Total</span><span>${f(t.total)}</span></div>
+ ${ids.length?`<div class="rw">${P.map(k=>`<button class="bt" style="margin:0" onclick="pay('${k}')">${k}</button>`).join("")}</div><div class="rw"><button class="bt s" onclick="hold()">Hold order</button><button class="bt d" onclick="clr()">Clear</button></div>`:""}</div>`}
+
+function pFood(){const L=q?S.menu.filter(m=>m.n.toLowerCase().includes(q.toLowerCase())):fc?S.menu.filter(m=>m.c==fc):null,C=cats();
+ const hd=`<div class="rw"><b style="font-size:20px">${q?"Results":fc?`<span style="cursor:pointer" onclick="fc=null;draw()">← </span>${esc(fc)}`:"Categories"}</b><input placeholder="Search..." value="${esc(q)}" onchange="q=this.value;draw()" style="width:170px"></div>`;
+ const g=L?L.map(m=>`<button class="ct" onclick="item(${m.id})"><span class="e">${ico(m)}</span><b>${esc(m.n)}</b><br><span style="color:var(--g);font-weight:700">${f(m.p)}</span></button>`).join("")
+  :C.map((c,i)=>`<button class="ct" onclick="fc=cats()[${i}];draw()"><span class="e">${CI[c]||"🍴"}</span><b>${esc(c)}</b><br><small>${S.menu.filter(m=>m.c==c).length} items</small></button>`).join("");
+ return`<div class="two"><div>${hd}<div class="gd" style="margin-top:10px">${g}</div></div>${pCart()}</div>`}
+
+function pDash(){const now=new Date(),sd=new Date(now.getFullYear(),now.getMonth(),now.getDate());let s0,n,key;
+ if(rg=="today"){s0=sd;n=24;key=d=>d.getHours()}else if(rg=="week"){s0=new Date(sd-6*864e5);n=7;key=d=>Math.floor((d-s0)/864e5)}
+ else if(rg=="month"){s0=new Date(sd-29*864e5);n=30;key=d=>Math.floor((d-s0)/864e5)}else{s0=new Date(now.getFullYear(),0,1);n=12;key=d=>d.getMonth()}
+ const os=S.orders.filter(o=>o.status=="paid"&&o.time>=s0),b=Array(n).fill(0),sf={},tp={};
+ os.forEach(o=>{const k=key(new Date(o.time));if(k>=0&&k<n)b[k]+=o.total;const s=o.staff||"Admin";sf[s]=(sf[s]||0)+o.total;o.items.forEach(i=>{tp[i.n]=tp[i.n]||{q:0,e:i.e||"🍴"};tp[i.n].q+=i.q})});
+ const sum=os.reduce((a,o)=>a+o.total,0),dn=os.filter(o=>(o.type||"Dine-in")=="Dine-in").reduce((a,o)=>a+o.total,0),p=sum?dn/sum*100:0,mx=Math.max(...b,1);
+ const pts=b.map((v,i)=>`${i/(n-1)*300},${120-v/mx*105}`).join(" ");
+ return`<div class="rw"><b style="font-size:22px">Dashboard</b><span>${[["today","Today"],["week","Week"],["month","Month"],["year","Year"]].map(([v,t])=>`<button class="qb" style="width:auto;padding:0 10px;height:28px;${rg==v?"":"background:var(--cd);color:var(--tx)"}" onclick="rg='${v}';draw()">${t}</button>`).join(" ")}</span></div>
+ <div class="dg"><div class="pn"><b>Sales</b> <small style="color:var(--mu)">peak ${f(mx==1&&!sum?0:mx)}</small><svg viewBox="0 0 300 125" style="width:100%;margin-top:8px"><polyline points="${pts}" fill="none" stroke="#b8902f" stroke-width="2.5"/></svg></div>
+ <div class="pn"><b>Total Revenue</b><div style="display:flex;align-items:center;gap:14px;margin-top:8px"><div style="width:130px;height:130px;border-radius:50%;background:conic-gradient(var(--sb) 0 ${p}%,var(--g) 0);display:grid;place-items:center"><div style="width:86px;height:86px;border-radius:50%;background:var(--wh);display:grid;place-items:center;font-weight:700;text-align:center;font-size:13px">${f(sum)}</div></div>
+ <div><span style="color:var(--sb)">●</span> Dine-in ${f(dn)}<br><span style="color:var(--g)">●</span> Takeaway ${f(sum-dn)}</div></div></div>
+ <div class="pn"><div class="rw"><span>Total Orders</span><b style="font-size:26px">${os.length}</b></div><div class="rw"><span>Avg. order</span><b style="font-size:20px">${f(os.length?sum/os.length:0)}</b></div></div></div>
+ <div class="dg"><div class="pn"><b>Best Employees</b>${Object.entries(sf).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>`<div class="rw"><span>👤 ${esc(k)}</span><b>${f(v)}</b></div>`).join("")||"<p style='color:var(--mu)'>No sales yet</p>"}</div>
+ <div class="pn"><b>Trending Dishes</b>${Object.entries(tp).sort((a,b)=>b[1].q-a[1].q).slice(0,5).map(([k,v])=>`<div class="rw"><span>${v.e} ${esc(k)}</span><b>${v.q}</b></div>`).join("")||"<p style='color:var(--mu)'>No sales yet</p>"}</div></div>`}
+
+function pBill(){const L=S.orders.filter(o=>(bf=="all"||o.status==bf)&&(!bq||("#"+o.id+" "+o.table+" "+(o.cust||"")).toLowerCase().includes(bq.toLowerCase()))),o=S.orders.find(x=>x.id==sel),P=Object.keys(S.cfg.pay).filter(k=>S.cfg.pay[k]);
+ const dt=o?`<div class="pn"><div class="rw"><b style="font-size:18px">Order #${o.id}</b><span class="tag ${o.status}">${o.status=="open"?"Active":"Paid"}</span></div>
+ <div class="rw" style="text-align:center"><span><small>Table</small><br><b>${esc(o.table)}</b></span><span><small>Customer</small><br><b>${esc(o.cust||"-")}</b></span><span><small>Payment</small><br><b>${o.pay||"Pending"}</b></span></div><hr style="opacity:.2">
+ ${o.items.map(i=>`<div class="rw"><span>${i.e||"🍴"} ${esc(i.n)} (${i.q}x)</span><b>${f(i.p*i.q)}</b></div>`).join("")}<hr style="opacity:.2">
+ <div class="rw" style="font-weight:700"><span>Total</span><span>${f(o.total)}</span></div>
+ ${o.status=="open"?P.map(k=>`<button class="bt" onclick="payBill(${o.id},'${k}')">Charge ${f(o.total)} · ${k}</button>`).join("")+`<button class="bt s" onclick="edit(${o.id})">Edit order</button>`:`<button class="bt" onclick="receipt(S.orders.find(x=>x.id==${o.id}))">Print receipt</button>`}
+ ${me().role=="admin"?`<button class="bt d" onclick="delOrder(${o.id})">Delete</button>`:""}</div>`:'<div class="pn">Select an order</div>';
+ return`<div class="two b"><div><div class="rw"><b style="font-size:22px">Bills</b><select style="width:130px" onchange="bf=this.value;draw()">${[["all","All orders"],["open","Active"],["paid","Paid"]].map(([v,t])=>`<option value="${v}" ${bf==v?"selected":""}>${t}</option>`).join("")}</select></div>
+ <input placeholder="Search order..." value="${esc(bq)}" onchange="bq=this.value;draw()" style="margin:6px 0 10px">
+ ${L.map(x=>`<div class="pn" style="cursor:pointer;${sel==x.id?"outline:2px solid var(--g)":""}" onclick="sel=${x.id};draw()"><div class="rw"><b>Order #${x.id}</b><span class="tag ${x.status}">${x.status=="open"?"Active":"Paid"}</span><b>${f(x.total)}</b></div><small style="color:var(--mu)">${esc(x.table)}${x.cust?" · "+esc(x.cust):""} · ${tm(x.time)}</small></div>`).join("")||"<p>No orders</p>"}</div>${dt}</div>`}
+
+function pMsg(){setTimeout(()=>{const e=$("#ch");if(e)e.scrollTop=1e9});
+ return`<b style="font-size:22px">Team Messages</b><div class="pn" style="margin-top:10px"><div id="ch" style="height:55vh;overflow:auto">${S.msgs.map(m=>`<div class="bub ${m.u==S.me?"me":""}"><small><b>${esc(m.n)}</b> · ${tm(m.time)}</small><br>${esc(m.x)}</div>`).join("")||"<p style='color:var(--mu)'>No messages yet. Notes stay on this device.</p>"}</div>
+ <div class="rw"><input id="mt" placeholder="Write a message..." onkeydown="if(event.key=='Enter')sendMsg()"><button class="bt" style="width:90px;margin:0" onclick="sendMsg()">Send</button></div></div>`}
+function sendMsg(){const x=$("#mt").value.trim();if(!x)return;S.msgs.push({u:S.me,n:me().name,x,time:Date.now()});S.msgs=S.msgs.slice(-100);save();draw()}
+
+const tg=(l,k)=>`<div class="rw"><span>${l}</span><label class="tg"><input type="checkbox" ${S.cfg.pay[k]?"checked":""} onchange="S.cfg.pay['${k}']=this.checked?1:0;save()"><span></span></label></div>`;
+const SP={
+prof:()=>{const u=me();return`<h3>Profile</h3><p style="margin:8px 0">${esc(u.name)} · ID: ${esc(u.id)} · ${u.role}</p><small>New password</small><input id="np" type="password"><button class="bt" onclick="chpw()">Save Changes</button><button class="bt s" onclick="S.me=null;save();draw()">Log out</button>`},
+look:()=>`<h3>Appearance</h3><div class="rw"><span>Theme</span><select style="width:130px" onchange="S.cfg.dark=+this.value;save();draw()"><option value="0">Light</option><option value="1" ${S.cfg.dark?"selected":""}>Dark</option></select></div>
+ <div class="rw"><span>Font size</span><select style="width:130px" onchange="S.cfg.fs=+this.value;save();draw()">${[13,14,16,18].map(x=>`<option ${S.cfg.fs==x?"selected":""}>${x}</option>`).join("")}</select></div>`,
+chk:()=>`<h3>Checkout settings</h3><div class="rw"><span>Tax %</span><input type="number" style="width:90px" value="${S.cfg.tax}" onchange="S.cfg.tax=+this.value;save()"></div>
+ <div class="rw"><span>Tables</span><input type="number" style="width:90px" value="${S.cfg.tables}" onchange="S.cfg.tables=+this.value;save()"></div>
+ <div class="rw"><span>Currency</span><input style="width:90px" value="${esc(S.cfg.cur)}" onchange="S.cfg.cur=this.value;save();draw()"></div><b>Payment methods</b>${["Cash","Card","QR"].map(k=>tg(k,k)).join("")}`,
+menu:()=>`<h3>Menu items</h3><div class="rw"><input id="ae" placeholder="😀" style="width:60px"><input id="an" placeholder="Name"></div><div class="rw"><input id="ap" type="number" placeholder="Price"><input id="ac" placeholder="Category" list="cl"></div>
+ <datalist id="cl">${cats().map(c=>`<option>${esc(c)}`).join("")}</datalist><button class="bt" onclick="addItem()">Add item</button>
+ ${S.menu.map(m=>`<div class="rw"><span>${ico(m)} ${esc(m.n)} <small style="color:var(--mu)">${esc(m.c)}</small></span><span>${f(m.p)} <button class="qb" style="background:var(--rd)" onclick="rmItem(${m.id})">×</button></span></div>`).join("")}`,
+staff:()=>`<h3>Staff</h3><div class="rw"><input id="si" placeholder="Sales ID"><input id="sn" placeholder="Name"></div><div class="rw"><input id="sp" placeholder="Password"><select id="sr"><option>staff</option><option>admin</option></select></div><button class="bt" onclick="addStaff()">Add staff</button>
+ ${S.users.map(u=>`<div class="rw"><span>👤 ${esc(u.name)} <small style="color:var(--mu)">${esc(u.id)} · ${u.role}</small></span>${u.id==S.me?"":`<button class="qb" style="background:var(--rd)" onclick="rmStaff('${esc(u.id)}')">×</button>`}</div>`).join("")}`,
+data:()=>`<h3>Data</h3><button class="bt" onclick="csv()">Export all sales (CSV)</button><button class="bt d" onclick="if(confirm('Delete ALL orders?')){S.orders=[];save();draw()}">Reset orders</button>`};
+const ST=[["prof","Profile"],["look","Appearance"],["chk","Checkout settings",1],["menu","Menu items",1],["staff","Staff",1],["data","Data",1]];
+function pSet(){const ad=me().role=="admin",T=ST.filter(t=>ad||!t[2]);if(!T.find(t=>t[0]==st))st="prof";
+ return`<b style="font-size:22px">Settings</b><div class="two s" style="margin-top:10px"><div class="pn">${T.map(t=>`<div class="nv" style="${st==t[0]?"background:var(--g);color:#fff":""}" onclick="st='${t[0]}';draw()">${t[1]}</div>`).join("")}</div><div class="pn">${SP[st]()}</div></div>`}
+function chpw(){const v=$("#np").value;if(v.length<4)return alert("Min 4 characters");me().pw=v;save();alert("Password changed");$("#np").value=""}
+function addItem(){const n=$("#an").value.trim(),p=+$("#ap").value;if(!n||!p)return alert("Enter name and price");S.menu.push({id:Date.now(),n,p,c:$("#ac").value.trim()||"General",e:$("#ae").value.trim()});save();draw()}
+function rmItem(id){if(confirm("Remove item?")){S.menu=S.menu.filter(m=>m.id!=id);save();draw()}}
+function addStaff(){const id=$("#si").value.trim(),n=$("#sn").value.trim(),pw=$("#sp").value;if(!id||!n||!pw)return alert("Fill all fields");if(S.users.find(u=>u.id.toLowerCase()==id.toLowerCase()))return alert("ID exists");
+ S.users.push({id,name:n,pw,role:$("#sr").value});save();draw()}
+function rmStaff(id){if(confirm("Remove staff?")){S.users=S.users.filter(u=>u.id!=id);save();draw()}}
+function csv(){const r=["id,time,type,table,customer,staff,status,payment,total"].concat(S.orders.map(o=>[o.id,new Date(o.time).toISOString(),o.type||"",o.table,'"'+(o.cust||"")+'"',o.staff||"",o.status,o.pay,o.total.toFixed(2)].join(",")));
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([r.join("\n")],{type:"text/csv"}));a.download="wednesday-cafe-sales.csv";a.click()}
+const pNote=()=>`<b style="font-size:22px">Notifications</b><div class="pn" style="margin-top:10px">${S.notes.map(n=>`<div class="rw"><span>🔔 ${esc(n.t)}</span><small style="color:var(--mu)">${new Date(n.time).toLocaleString()}</small></div>`).join("")||"<p style='color:var(--mu)'>Nothing yet</p>"}</div>`;
+const pHelp=()=>`<b style="font-size:22px">Support</b><div class="pn" style="margin-top:10px"><p><b>Take an order:</b> Food & Drinks → pick category → tap item → Add to Order → choose payment.</p><br><p><b>Pay later:</b> use Hold order, then open Bills → Charge.</p><br><p><b>Change prices or add staff:</b> Settings (admin only).</p><br><p style="color:var(--mu)">Data is saved on this device. Export CSV regularly from Settings → Data.</p></div>`;
+function draw(){document.body.classList.toggle("dark",!!S.cfg.dark);document.body.style.fontSize=S.cfg.fs+"px";const u=me();$("#lgn").style.display=u?"none":"flex";if(!u)return;
+ $("#sb").innerHTML=`<div class="lg">☕ Wednesday <span>Cafe</span></div>`+NV.map(([k,i,t])=>`${k=="note"?'<div class="ot" style="font-size:11px;margin:12px 12px 2px;opacity:.6">Others</div>':""}<div class="nv ${pg==k?"on":""}" onclick="go('${k}')"><span>${i}</span>${t}${k=="note"&&S.nu?`<span class="bd">${S.nu}</span>`:""}</div>`).join("")+`<div class="pf"><div style="font-size:26px">👤</div><b>${esc(u.name)}</b><br>${u.role}</div>`;
+ $("#mn").innerHTML=({dash:pDash,food:pFood,msg:pMsg,bill:pBill,set:pSet,note:pNote,help:pHelp})[pg]()}
+draw();if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script></body></html>
