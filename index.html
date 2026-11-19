@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<meta name="theme-color" content="#14403f"><link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#14403f"><link rel="manifest" href="manifest.json"><script src="config.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <title>Wednesday Cafe POS</title>
 <style>
 :root{--sb:#14403f;--g:#b8902f;--bg:#f5f3ee;--cd:#dde3df;--tx:#1d2b2a;--mu:#6b7a78;--wh:#fff;--rd:#c0392b;--gr:#2e7d32}
@@ -20,7 +20,7 @@ body{background:var(--bg);color:var(--tx);height:100vh;display:flex;overflow:hid
 .pn{background:var(--wh);border-radius:14px;padding:14px;margin-bottom:12px}
 .bt{background:var(--g);color:#fff;border:0;border-radius:8px;padding:11px;width:100%;font-weight:600;cursor:pointer;margin-top:8px;font-size:14px}
 .bt.s{background:var(--cd);color:var(--tx)}.bt.d{background:var(--rd)}
-input,select{padding:9px;border-radius:8px;border:1px solid #0002;background:var(--wh);color:var(--tx);width:100%;font-size:14px}
+input,select,textarea{padding:9px;border-radius:8px;border:1px solid #0002;background:var(--wh);color:var(--tx);width:100%;font-size:14px}
 .rw{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:5px 0}
 .two{display:grid;grid-template-columns:1fr 310px;gap:14px;align-items:start}
 .two.b{grid-template-columns:1fr 340px}.two.s{grid-template-columns:200px 1fr}
@@ -38,6 +38,7 @@ input,select{padding:9px;border-radius:8px;border:1px solid #0002;background:var
 .lgl{flex:1;background:var(--cd);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:18px;text-align:center;padding:20px;font-weight:600}
 .lgr{flex:1;display:flex;flex-direction:column;justify-content:center;padding:40px;max-width:480px;gap:10px}
 #rc{display:none}
+.qr svg,#rc svg{width:100%;height:auto}table.t{width:100%;border-collapse:collapse;font-size:12px}.t th,.t td{padding:6px;border-bottom:1px solid #0002;text-align:left;white-space:nowrap}.tag.cancelled{background:var(--rd)}
 @media(max-width:900px){.two,.two.b,.two.s{grid-template-columns:1fr}}
 @media(max-width:800px){body{flex-direction:column-reverse}#sb{width:100%;flex-direction:row;padding:4px;overflow-x:auto}.lg,.pf,.ot{display:none}.nv{flex-direction:column;gap:2px;font-size:10px;padding:6px 10px;flex:0 0 auto}.lgl{display:none}.lgr{max-width:none}}
 @media print{body{display:block;height:auto;overflow:visible}body>*:not(#rc){display:none!important}#rc{display:block;font:13px monospace;width:72mm}}
@@ -49,9 +50,9 @@ input,select{padding:9px;border-radius:8px;border:1px solid #0002;background:var
 <input id="li" placeholder="Sales ID"><input id="lp" type="password" placeholder="Password" onkeydown="if(event.key=='Enter')login()">
 <div id="le" style="color:var(--rd)"></div><button class="bt" onclick="login()">Sign in</button></div></div>
 <script>
-const $=s=>document.querySelector(s),K='wcpos1';
+const $=s=>document.querySelector(s),K='wcpos1',CFG=window.SBCFG||{url:"",key:""},PQ=new URLSearchParams(location.search),CT=PQ.get("t"),CK=PQ.get("k");
 const D={menu:[["Espresso",150,"Coffee","☕"],["Cappuccino",220,"Coffee","☕"],["Latte",240,"Coffee","🥛"],["Iced Tea",180,"Drinks","🧋"],["Lemonade",150,"Drinks","🍋"],["Veg Momo",200,"Food","🥟"],["Chicken Momo",250,"Food","🥟"],["Club Sandwich",320,"Food","🥪"],["French Fries",180,"Food","🍟"],["Burger",350,"Food","🍔"],["Pizza",450,"Food","🍕"],["Brownie",160,"Dessert","🍫"],["Cheesecake",280,"Dessert","🍰"]].map((m,i)=>({id:i+1,n:m[0],p:m[1],c:m[2],e:m[3]})),
-orders:[],seq:1,cfg:{tax:13,tables:10,cur:"Rs",pay:{Cash:1,Card:1,QR:1},dark:0,fs:14},users:[{id:"admin",name:"Admin",pw:"1234",role:"admin"}],msgs:[],notes:[],nu:0,me:null};
+orders:[],jr:[],tbl:{},seq:1,cfg:{tax:13,tables:10,cur:"Rs",pay:{Cash:1,Card:1,QR:1},dark:0,fs:14,qr:0},users:[{id:"admin",name:"Admin",pw:"1234",role:"admin"}],msgs:[],notes:[],nu:0,me:null};
 let S=JSON.parse(localStorage.getItem(K)||"{}");S={...D,...S,cfg:{...D.cfg,...S.cfg}};
 if(S.cfg.pin){S.users[0].pw=S.cfg.pin;delete S.cfg.pin}
 const save=()=>localStorage.setItem(K,JSON.stringify(S));
@@ -59,23 +60,26 @@ const CI={Coffee:"☕",Drinks:"🥤",Food:"🍽️",Dessert:"🍰"},ico=m=>m.e||
 const f=n=>S.cfg.cur+" "+(Math.round(n*100)/100),esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const me=()=>S.users.find(x=>x.id==S.me),tm=t=>new Date(t).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
 let pg="dash",fc=null,q="",cart={},ctype="Dine-in",table="Table 1",cust="",disc=0,editId=null,sel=null,st="prof",rg="today",bf="all",bq="",mq=1;
-const NV=[["dash","📊","Dashboard"],["food","🍔","Food & Drinks"],["msg","💬","Messages"],["bill","🧾","Bills"],["set","⚙️","Settings"],["note","🔔","Notifications"],["help","🛟","Support"]];
+const NV=[["dash","📊","Dashboard"],["food","🍔","Food & Drinks"],["msg","💬","Messages"],["bill","🧾","Bills"],["log","📒","Sales Log"],["set","⚙️","Settings"],["note","🔔","Notifications"],["help","🛟","Support"]];
 const go=p=>{pg=p;if(p=="note"){S.nu=0;save()}draw()};
 const md=h=>{$("#md").style.display=h?"flex":"none";$("#bx").innerHTML=h||""};
-const note=t=>{S.notes.unshift({t,time:Date.now()});S.notes=S.notes.slice(0,50);S.nu++};
+const MSG={new:o=>`✅ New Order Received\nTable: ${o.table} · Order: #${o.id} · Amount: ${f(o.total)}\nPlaced successfully ${o.src=="qr"?"via QR ordering system":"at the counter"}.`,
+paid:o=>`✅ Payment Confirmed\nOrder #${o.id} has been paid successfully.\nPayment Method: ${o.pay}\nAmount: ${f(o.total)}\nTime: ${new Date().toLocaleString()}`,
+cancel:o=>`❌ Order Cancelled\nOrder #${o.id} · ${o.table} · ${f(o.total)}`};
+const note=(k,o)=>{S.notes.unshift({k,oid:o.id,t:MSG[k](o),time:Date.now()});S.notes=S.notes.slice(0,100);S.nu++};
 function login(){const i=$("#li").value.trim().toLowerCase(),p=$("#lp").value,u=S.users.find(x=>x.id.toLowerCase()==i&&x.pw==p);
  if(!u){$("#le").textContent="Wrong ID or password";return}S.me=u.id;save();$("#lp").value="";$("#le").textContent="";draw()}
 function tot(){let sub=0;for(const id in cart){const m=S.menu.find(x=>x.id==id);if(m)sub+=m.p*cart[id]}const d=Math.min(disc,sub),tx=(sub-d)*S.cfg.tax/100;return{sub,d,tx,total:sub-d+tx}}
 const add=(id,n=1)=>{cart[id]=(cart[id]||0)+n;draw()},qty=(id,d)=>{cart[id]+=d;if(cart[id]<=0)delete cart[id];draw()};
 const clr=()=>{cart={};disc=0;editId=null;cust="";ctype="Dine-in";table="Table 1";draw()};
-function build(s,p){const t=tot();return{id:editId||S.seq,type:ctype,table:ctype=="Dine-in"?table:"Takeaway",cust:cust.trim(),staff:me().name,status:s,pay:p||"",time:Date.now(),
+function build(s,p){const t=tot(),ex=editId&&S.orders.find(x=>x.id==editId)||{};return{cloud:ex.cloud,src:ex.src,sess:ex.sess,ks:ex.ks,notes:ex.notes,id:editId||S.seq,type:ctype,table:ctype=="Dine-in"?table:"Takeaway",cust:cust.trim(),staff:me().name,status:s,pay:p||"",time:Date.now(),
  items:Object.keys(cart).map(id=>{const m=S.menu.find(x=>x.id==id);return{n:m.n,p:m.p,q:cart[id],e:ico(m)}}),sub:t.sub,disc:t.d,tax:t.tx,total:t.total}}
-function commit(o){if(editId)S.orders=S.orders.filter(x=>x.id!=editId);else S.seq++;S.orders.unshift(o);note(`Order #${o.id} ${o.status=="paid"?"paid ("+o.pay+") "+f(o.total):"placed for "+o.table}`);clr()}
+function commit(o){const ed=editId;if(ed)S.orders=S.orders.filter(x=>x.id!=ed);else{S.seq++;jr(o,"New order placed","Receivable","Sales");note("new",o)}S.orders.unshift(o);if(o.disc>0)jr(o,"Discount applied","Discounts","Receivable",o.disc);if(o.status=="paid"){jr(o,"Payment received",o.pay,"Receivable");note("paid",o);cloudSt(o,"paid")}save();clr()}
 const hold=()=>commit(build("open")),pay=m=>{const o=build("paid",m);commit(o);receipt(o)};
-function payBill(id,m){const o=S.orders.find(x=>x.id==id);o.status="paid";o.pay=m;note(`Order #${id} paid (${m}) ${f(o.total)}`);save();receipt(o);draw()}
+function payBill(id,m){const o=S.orders.find(x=>x.id==id);o.status="paid";o.pay=m;jr(o,"Payment received",m,"Receivable");note("paid",o);cloudSt(o,"paid");save();receipt(o);draw()}
 function edit(id){const o=S.orders.find(x=>x.id==id);cart={};o.items.forEach(i=>{const m=S.menu.find(x=>x.n==i.n);if(m)cart[m.id]=i.q});
  ctype=o.type||"Dine-in";table=o.table;cust=o.cust||"";disc=o.disc;editId=id;pg="food";draw()}
-function delOrder(id){if(confirm("Delete order #"+id+"?")){S.orders=S.orders.filter(o=>o.id!=id);sel=null;save();draw()}}
+function delOrder(id){if(me().role!="admin")return;if(confirm("Cancel order #"+id+"?")){const o=S.orders.find(x=>x.id==id),w=o.status;o.status="cancelled";jr(o,w=="paid"?"Refund issued":"Order cancelled","Sales",w=="paid"?o.pay:"Receivable",o.total,"By "+me().name);note("cancel",o);cloudSt(o,"cancelled");save();draw()}}
 function receipt(o){$("#rc").innerHTML=`<center><b>WEDNESDAY CAFE</b><br>Receipt #${o.id}<br>${new Date(o.time).toLocaleString()}<br>${esc(o.table)}${o.cust?" · "+esc(o.cust):""}<br>Served by ${esc(o.staff||"")}</center><hr>
  ${o.items.map(i=>`${esc(i.n)}<br>&nbsp;${i.q} x ${i.p} <span style="float:right">${i.q*i.p}</span><br>`).join("")}<hr>
  Subtotal<span style="float:right">${o.sub}</span><br>Discount<span style="float:right">${o.disc}</span><br>Tax ${S.cfg.tax}%<span style="float:right">${o.tax.toFixed(2)}</span><br>
@@ -117,18 +121,18 @@ function pDash(){const now=new Date(),sd=new Date(now.getFullYear(),now.getMonth
  <div class="pn"><b>Trending Dishes</b>${Object.entries(tp).sort((a,b)=>b[1].q-a[1].q).slice(0,5).map(([k,v])=>`<div class="rw"><span>${v.e} ${esc(k)}</span><b>${v.q}</b></div>`).join("")||"<p style='color:var(--mu)'>No sales yet</p>"}</div></div>`}
 
 function pBill(){const L=S.orders.filter(o=>(bf=="all"||o.status==bf)&&(!bq||("#"+o.id+" "+o.table+" "+(o.cust||"")).toLowerCase().includes(bq.toLowerCase()))),o=S.orders.find(x=>x.id==sel),P=Object.keys(S.cfg.pay).filter(k=>S.cfg.pay[k]);
- const dt=o?`<div class="pn"><div class="rw"><b style="font-size:18px">Order #${o.id}</b><span class="tag ${o.status}">${o.status=="open"?"Active":"Paid"}</span></div>
+ const dt=o?`<div class="pn"><div class="rw"><b style="font-size:18px">Order #${o.id}</b><span class="tag ${o.status}">${TS[o.status]}</span></div>
  <div class="rw" style="text-align:center"><span><small>Table</small><br><b>${esc(o.table)}</b></span><span><small>Customer</small><br><b>${esc(o.cust||"-")}</b></span><span><small>Payment</small><br><b>${o.pay||"Pending"}</b></span></div><hr style="opacity:.2">
- ${o.items.map(i=>`<div class="rw"><span>${i.e||"🍴"} ${esc(i.n)} (${i.q}x)</span><b>${f(i.p*i.q)}</b></div>`).join("")}<hr style="opacity:.2">
+ ${o.items.map(i=>`<div class="rw"><span>${i.e||"🍴"} ${esc(i.n)} (${i.q}x)</span><b>${f(i.p*i.q)}</b></div>`).join("")}${o.notes?`<p>📝 ${esc(o.notes)}</p>`:""}<hr style="opacity:.2">
  <div class="rw" style="font-weight:700"><span>Total</span><span>${f(o.total)}</span></div>
- ${o.status=="open"?P.map(k=>`<button class="bt" onclick="payBill(${o.id},'${k}')">Charge ${f(o.total)} · ${k}</button>`).join("")+`<button class="bt s" onclick="edit(${o.id})">Edit order</button>`:`<button class="bt" onclick="receipt(S.orders.find(x=>x.id==${o.id}))">Print receipt</button>`}
- ${me().role=="admin"?`<button class="bt d" onclick="delOrder(${o.id})">Delete</button>`:""}</div>`:'<div class="pn">Select an order</div>';
+ ${o.src=="qr"&&o.status=="open"?`<div class="rw"><span class="tag open">${o.ks||"new"}</span><button class="bt s" style="margin:0" onclick="setKs(${o.id},'preparing')">Preparing</button><button class="bt s" style="margin:0" onclick="setKs(${o.id},'served')">Served</button></div>`:""}${o.status=="open"?P.map(k=>`<button class="bt" onclick="payBill(${o.id},'${k}')">Charge ${f(o.total)} · ${k}</button>`).join("")+`<button class="bt s" onclick="edit(${o.id})">Edit order</button>`:o.status=="paid"?`<button class="bt" onclick="receipt(S.orders.find(x=>x.id==${o.id}))">Print receipt</button>`:""}
+ ${me().role=="admin"&&o.status!="cancelled"?`<button class="bt d" onclick="delOrder(${o.id})">Cancel order</button>`:""}</div>`:'<div class="pn">Select an order</div>';
  return`<div class="two b"><div><div class="rw"><b style="font-size:22px">Bills</b><select style="width:130px" onchange="bf=this.value;draw()">${[["all","All orders"],["open","Active"],["paid","Paid"]].map(([v,t])=>`<option value="${v}" ${bf==v?"selected":""}>${t}</option>`).join("")}</select></div>
  <input placeholder="Search order..." value="${esc(bq)}" onchange="bq=this.value;draw()" style="margin:6px 0 10px">
- ${L.map(x=>`<div class="pn" style="cursor:pointer;${sel==x.id?"outline:2px solid var(--g)":""}" onclick="sel=${x.id};draw()"><div class="rw"><b>Order #${x.id}</b><span class="tag ${x.status}">${x.status=="open"?"Active":"Paid"}</span><b>${f(x.total)}</b></div><small style="color:var(--mu)">${esc(x.table)}${x.cust?" · "+esc(x.cust):""} · ${tm(x.time)}</small></div>`).join("")||"<p>No orders</p>"}</div>${dt}</div>`}
+ ${L.map(x=>`<div class="pn" style="cursor:pointer;${sel==x.id?"outline:2px solid var(--g)":""}" onclick="sel=${x.id};draw()"><div class="rw"><b>Order #${x.id}</b><span class="tag ${x.status}">${TS[x.status]}</span><b>${f(x.total)}</b></div><small style="color:var(--mu)">${esc(x.table)}${x.cust?" · "+esc(x.cust):""} · ${tm(x.time)}</small></div>`).join("")||"<p>No orders</p>"}</div>${dt}</div>`}
 
 function pMsg(){setTimeout(()=>{const e=$("#ch");if(e)e.scrollTop=1e9});
- return`<b style="font-size:22px">Team Messages</b><div class="pn" style="margin-top:10px"><div id="ch" style="height:55vh;overflow:auto">${S.msgs.map(m=>`<div class="bub ${m.u==S.me?"me":""}"><small><b>${esc(m.n)}</b> · ${tm(m.time)}</small><br>${esc(m.x)}</div>`).join("")||"<p style='color:var(--mu)'>No messages yet. Notes stay on this device.</p>"}</div>
+ return`<div class="rw"><b style="font-size:22px">Team Messages</b>${me().role=="admin"&&S.msgs.length?'<button class="qb" style="width:auto;padding:0 10px;background:var(--rd)" onclick="secure(\'clearing all messages\',clrMsgs)">Clear messages</button>':""}</div><div class="pn" style="margin-top:10px"><div id="ch" style="height:55vh;overflow:auto">${S.msgs.map(m=>`<div class="bub ${m.u==S.me?"me":""}"><small><b>${esc(m.n)}</b> · ${tm(m.time)}</small><br>${esc(m.x)}</div>`).join("")||"<p style='color:var(--mu)'>No messages yet. Notes stay on this device.</p>"}</div>
  <div class="rw"><input id="mt" placeholder="Write a message..." onkeydown="if(event.key=='Enter')sendMsg()"><button class="bt" style="width:90px;margin:0" onclick="sendMsg()">Send</button></div></div>`}
 function sendMsg(){const x=$("#mt").value.trim();if(!x)return;S.msgs.push({u:S.me,n:me().name,x,time:Date.now()});S.msgs=S.msgs.slice(-100);save();draw()}
 
@@ -137,30 +141,89 @@ const SP={
 prof:()=>{const u=me();return`<h3>Profile</h3><p style="margin:8px 0">${esc(u.name)} · ID: ${esc(u.id)} · ${u.role}</p><small>New password</small><input id="np" type="password"><button class="bt" onclick="chpw()">Save Changes</button><button class="bt s" onclick="S.me=null;save();draw()">Log out</button>`},
 look:()=>`<h3>Appearance</h3><div class="rw"><span>Theme</span><select style="width:130px" onchange="S.cfg.dark=+this.value;save();draw()"><option value="0">Light</option><option value="1" ${S.cfg.dark?"selected":""}>Dark</option></select></div>
  <div class="rw"><span>Font size</span><select style="width:130px" onchange="S.cfg.fs=+this.value;save();draw()">${[13,14,16,18].map(x=>`<option ${S.cfg.fs==x?"selected":""}>${x}</option>`).join("")}</select></div>`,
-chk:()=>`<h3>Checkout settings</h3><div class="rw"><span>Tax %</span><input type="number" style="width:90px" value="${S.cfg.tax}" onchange="S.cfg.tax=+this.value;save()"></div>
- <div class="rw"><span>Tables</span><input type="number" style="width:90px" value="${S.cfg.tables}" onchange="S.cfg.tables=+this.value;save()"></div>
- <div class="rw"><span>Currency</span><input style="width:90px" value="${esc(S.cfg.cur)}" onchange="S.cfg.cur=this.value;save();draw()"></div><b>Payment methods</b>${["Cash","Card","QR"].map(k=>tg(k,k)).join("")}`,
+chk:()=>`<h3>Checkout settings</h3><div class="rw"><span>Tax %</span><input type="number" style="width:90px" value="${S.cfg.tax}" onchange="S.cfg.tax=+this.value;save();syncAll()"></div>
+ <div class="rw"><span>Tables</span><input type="number" style="width:90px" value="${S.cfg.tables}" onchange="S.cfg.tables=+this.value;save();syncAll();draw()"></div>
+ <div class="rw"><span>Currency</span><input style="width:90px" value="${esc(S.cfg.cur)}" onchange="S.cfg.cur=this.value;save();draw()"></div><b>Payment methods</b>${["Cash","Card","QR"].map(k=>tg(k,k)).join("")}${qrPanel()}`,
 menu:()=>`<h3>Menu items</h3><div class="rw"><input id="ae" placeholder="😀" style="width:60px"><input id="an" placeholder="Name"></div><div class="rw"><input id="ap" type="number" placeholder="Price"><input id="ac" placeholder="Category" list="cl"></div>
  <datalist id="cl">${cats().map(c=>`<option>${esc(c)}`).join("")}</datalist><button class="bt" onclick="addItem()">Add item</button>
  ${S.menu.map(m=>`<div class="rw"><span>${ico(m)} ${esc(m.n)} <small style="color:var(--mu)">${esc(m.c)}</small></span><span>${f(m.p)} <button class="qb" style="background:var(--rd)" onclick="rmItem(${m.id})">×</button></span></div>`).join("")}`,
 staff:()=>`<h3>Staff</h3><div class="rw"><input id="si" placeholder="Sales ID"><input id="sn" placeholder="Name"></div><div class="rw"><input id="sp" placeholder="Password"><select id="sr"><option>staff</option><option>admin</option></select></div><button class="bt" onclick="addStaff()">Add staff</button>
  ${S.users.map(u=>`<div class="rw"><span>👤 ${esc(u.name)} <small style="color:var(--mu)">${esc(u.id)} · ${u.role}</small></span>${u.id==S.me?"":`<button class="qb" style="background:var(--rd)" onclick="rmStaff('${esc(u.id)}')">×</button>`}</div>`).join("")}`,
-data:()=>`<h3>Data</h3><button class="bt" onclick="csv()">Export all sales (CSV)</button><button class="bt d" onclick="if(confirm('Delete ALL orders?')){S.orders=[];save();draw()}">Reset orders</button>`};
+data:()=>`<h3>Data</h3><button class="bt" onclick="salesCsv(1)">Export all sales (CSV)</button><button class="bt d" onclick="if(confirm('Delete ALL orders?')){S.orders=[];save();draw()}">Reset orders</button>`};
 const ST=[["prof","Profile"],["look","Appearance"],["chk","Checkout settings",1],["menu","Menu items",1],["staff","Staff",1],["data","Data",1]];
 function pSet(){const ad=me().role=="admin",T=ST.filter(t=>ad||!t[2]);if(!T.find(t=>t[0]==st))st="prof";
  return`<b style="font-size:22px">Settings</b><div class="two s" style="margin-top:10px"><div class="pn">${T.map(t=>`<div class="nv" style="${st==t[0]?"background:var(--g);color:#fff":""}" onclick="st='${t[0]}';draw()">${t[1]}</div>`).join("")}</div><div class="pn">${SP[st]()}</div></div>`}
 function chpw(){const v=$("#np").value;if(v.length<4)return alert("Min 4 characters");me().pw=v;save();alert("Password changed");$("#np").value=""}
-function addItem(){const n=$("#an").value.trim(),p=+$("#ap").value;if(!n||!p)return alert("Enter name and price");S.menu.push({id:Date.now(),n,p,c:$("#ac").value.trim()||"General",e:$("#ae").value.trim()});save();draw()}
-function rmItem(id){if(confirm("Remove item?")){S.menu=S.menu.filter(m=>m.id!=id);save();draw()}}
+function addItem(){const n=$("#an").value.trim(),p=+$("#ap").value;if(!n||!p)return alert("Enter name and price");S.menu.push({id:Date.now(),n,p,c:$("#ac").value.trim()||"General",e:$("#ae").value.trim()});save();syncAll();draw()}
+function rmItem(id){if(confirm("Remove item?")){S.menu=S.menu.filter(m=>m.id!=id);save();syncAll();draw()}}
 function addStaff(){const id=$("#si").value.trim(),n=$("#sn").value.trim(),pw=$("#sp").value;if(!id||!n||!pw)return alert("Fill all fields");if(S.users.find(u=>u.id.toLowerCase()==id.toLowerCase()))return alert("ID exists");
  S.users.push({id,name:n,pw,role:$("#sr").value});save();draw()}
 function rmStaff(id){if(confirm("Remove staff?")){S.users=S.users.filter(u=>u.id!=id);save();draw()}}
 function csv(){const r=["id,time,type,table,customer,staff,status,payment,total"].concat(S.orders.map(o=>[o.id,new Date(o.time).toISOString(),o.type||"",o.table,'"'+(o.cust||"")+'"',o.staff||"",o.status,o.pay,o.total.toFixed(2)].join(",")));
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([r.join("\n")],{type:"text/csv"}));a.download="wednesday-cafe-sales.csv";a.click()}
-const pNote=()=>`<b style="font-size:22px">Notifications</b><div class="pn" style="margin-top:10px">${S.notes.map(n=>`<div class="rw"><span>🔔 ${esc(n.t)}</span><small style="color:var(--mu)">${new Date(n.time).toLocaleString()}</small></div>`).join("")||"<p style='color:var(--mu)'>Nothing yet</p>"}</div>`;
+const pNote=()=>`<div class="rw"><b style="font-size:22px">Notifications</b>${me().role=="admin"&&S.notes.length?'<button class="qb" style="width:auto;padding:0 10px;background:var(--rd)" onclick="secure(\'clearing all notifications\',clrNotes)">Clear notifications</button>':""}</div><div class="pn" style="margin-top:10px">${S.notes.map(n=>`<div class="rw" style="align-items:flex-start;border-bottom:1px solid #0001;padding-bottom:6px"><span>${esc(n.t).replace(/\n/g,"<br>")}<br><small style="color:var(--mu)">${new Date(n.time).toLocaleString()}</small></span>${n.oid?`<button class="qb" style="width:auto;padding:0 10px" onclick="histNote(${n.oid})">History</button>`:""}</div>`).join("")||"<p style='color:var(--mu)'>No notifications</p>"}</div>`;
 const pHelp=()=>`<b style="font-size:22px">Support</b><div class="pn" style="margin-top:10px"><p><b>Take an order:</b> Food & Drinks → pick category → tap item → Add to Order → choose payment.</p><br><p><b>Pay later:</b> use Hold order, then open Bills → Charge.</p><br><p><b>Change prices or add staff:</b> Settings (admin only).</p><br><p style="color:var(--mu)">Data is saved on this device. Export CSV regularly from Settings → Data.</p></div>`;
+const TS={open:"Active",paid:"Paid",cancelled:"Cancelled"},rnd=()=>[...crypto.getRandomValues(new Uint8Array(9))].map(b=>b.toString(36).padStart(2,"0")).join("");
+const jr=(o,d,dr,cr,amt,pn)=>S.jr.unshift({time:Date.now(),oid:o.id,table:o.table,desc:d,dr,cr,amt:amt??o.total,pay:o.pay||"",ps:o.status=="paid"?"Paid":o.status=="cancelled"?"Cancelled":"Unpaid",notes:pn||"",by:(me()||{}).name||"QR"});
+let sbc=null,cOn=false,pulling=0,lt="sales",lr="today",ld1="",ld2="",lq="",lsel=null;
+function secure(what,fn){window._sf=fn;md(`<h3>🔒 Administrator Authentication Required</h3><p style="margin:8px 0">For security reasons, please enter your administrator password before ${what}. This action cannot be undone and history remains available in Sales Logs and the Journal Ledger.</p><input id="sp2" type="password" placeholder="Administrator password"><div id="se" style="color:var(--rd);margin-top:4px"></div><button class="bt" onclick="secOk()">Verify & continue</button><button class="bt s" onclick="md()">Cancel</button>`)}
+function secOk(){if(me().role!="admin"||$("#sp2").value!==me().pw){$("#se").textContent="Incorrect administrator password";return}if(!confirm("Are you sure? This cannot be undone."))return;const fn=window._sf;md();fn()}
+function clrNotes(){S.notes=[];S.nu=0;save();draw();alert("✅ Notifications Cleared\n\nNotifications have been cleared successfully.\nHistorical records remain available in Sales Logs and Journal Ledger.")}
+function clrMsgs(){S.msgs=[];save();draw();alert("✅ Messages Cleared\n\nAll team messages have been cleared successfully.")}
+function histNote(id){pg="log";lt="sales";lr="all";lq="";lsel=id;draw()}
+const cloudSt=(o,s)=>{if(sbc&&cOn&&o.cloud)sbc.from("orders").update({status:s}).eq("id",o.cloud).then(()=>{})};
+function setKs(id,s){const o=S.orders.find(x=>x.id==id);o.ks=s;cloudSt(o,s);save();draw()}
+function initSb(){if(!sbc&&window.supabase&&CFG.url)sbc=supabase.createClient(CFG.url,CFG.key);return sbc}
+async function boot(){if(!initSb())return;const r=await sbc.auth.getSession();cOn=!!r.data.session;if(cOn){await syncAll();pull()}setInterval(pull,10000)}
+function ensureT(){for(let i=1;i<=S.cfg.tables;i++)if(!S.tbl[i])S.tbl[i]={tok:rnd(),on:1}}
+async function syncAll(){ensureT();save();if(!sbc||!cOn)return;try{await sbc.from("menu_items").upsert(S.menu.map(m=>({id:m.id,name:m.n,price:m.p,category:m.c,emoji:m.e||CI[m.c]||""})));
+ const ids=S.menu.map(m=>m.id);if(ids.length)await sbc.from("menu_items").delete().not("id","in","("+ids.join(",")+")");
+ await sbc.from("restaurant_tables").upsert(Array.from({length:S.cfg.tables},(_,k)=>({table_number:String(k+1),token:S.tbl[k+1].tok,active:!!S.tbl[k+1].on})));
+ await sbc.from("app_cfg").upsert({id:1,tax:S.cfg.tax})}catch(e){}}
+async function cLogin(){if(!initSb())return alert("Add your Supabase URL and key in config.js first (and be online).");const{error}=await sbc.auth.signInWithPassword({email:$("#ce").value.trim(),password:$("#cw").value});if(error)return alert(error.message);cOn=true;S.cfg.qr=1;save();await syncAll();draw();alert("Connected. Menu and tables are synced.")}
+async function pull(){if(!sbc||!cOn||!S.cfg.qr||pulling)return;pulling=1;try{const{data,error}=await sbc.from("orders").select("*").eq("synced",false).order("created_at");if(error||!data||!data.length)return;
+ for(const r of data){if(!S.orders.some(x=>x.cloud==r.id)){const o={id:S.seq++,type:"Dine-in",table:"Table "+r.table_number,cust:"QR #"+r.order_no,staff:"QR",status:"open",ks:"new",src:"qr",cloud:r.id,sess:r.session,notes:r.notes||"",pay:"",time:new Date(r.created_at).getTime(),items:r.items.map(i=>({n:i.n,p:+i.p,q:i.q,e:i.e||"🍴"})),sub:+r.subtotal,disc:0,tax:+r.tax,total:+r.total};
+  S.orders.unshift(o);jr(o,"New order placed (QR)","Receivable","Sales");note("new",o)}
+  await sbc.from("orders").update({synced:true,status:"received"}).eq("id",r.id)}
+ save();draw();try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}}catch(e){}finally{pulling=0}}
+const qrUrl=i=>location.origin+location.pathname.replace(/[^\/]*$/,"")+"?t="+i+"&k="+S.tbl[i].tok;
+const qrSvg=u=>{try{const q=qrcode(0,"M");q.addData(u);q.make();return q.createSvgTag({cellSize:3,margin:2,scalable:true})}catch(e){return"<small>QR needs internet once to draw</small>"}};
+function prQr(i){$("#rc").innerHTML=`<center><h2>Wednesday Cafe</h2><h3>Table ${i}</h3><div style="width:60mm">${qrSvg(qrUrl(i))}</div><p>Scan to view the menu and order</p></center>`;setTimeout(()=>print(),150)}
+function regen(i){if(confirm("The old QR for Table "+i+" will stop working. Continue?")){S.tbl[i].tok=rnd();save();syncAll();draw()}}
+function qrPanel(){ensureT();const T=Array.from({length:S.cfg.tables},(_,k)=>k+1);
+ return`<hr style="opacity:.2;margin:12px 0"><b>QR ordering (customers)</b><div class="rw"><span>Allow customers to order by QR</span><label class="tg"><input type="checkbox" ${S.cfg.qr?"checked":""} onchange="S.cfg.qr=this.checked?1:0;save()"><span></span></label></div>
+ ${!CFG.url?'<p style="color:var(--rd)">Not set up yet: add your Supabase URL and key in config.js.</p>':cOn?'<p style="color:var(--gr)">● Connected to cloud</p><button class="bt s" onclick="syncAll().then(()=>alert(\'Synced\'))">Sync menu & tables now</button>':'<input id="ce" placeholder="Staff cloud email" style="margin:6px 0"><input id="cw" type="password" placeholder="Cloud password"><button class="bt" onclick="cLogin()">Connect</button>'}
+ <p style="color:var(--mu);margin:8px 0">A QR code is created automatically for every table. Customers can only view the menu and place orders; only admin and staff can change anything.</p>
+ <div class="gd">${T.map(i=>`<div class="pn qr" style="text-align:center;padding:8px;${S.tbl[i].on?"":"opacity:.5"}"><b>Table ${i}</b><div style="width:110px;margin:4px auto">${qrSvg(qrUrl(i))}</div><label class="tg"><input type="checkbox" ${S.tbl[i].on?"checked":""} onchange="S.tbl[${i}].on=this.checked?1:0;save();syncAll();draw()"><span></span></label><br><button class="qb" style="width:auto;padding:0 8px" onclick="prQr(${i})">Print</button> <button class="qb" style="width:auto;padding:0 8px" onclick="regen(${i})">New QR</button></div>`).join("")}</div>`}
+function rng(){const n=new Date(),D=864e5,sd=new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime();
+ return({today:[sd,sd+D],yest:[sd-D,sd],week:[sd-((n.getDay()+6)%7)*D,sd+D],month:[new Date(n.getFullYear(),n.getMonth(),1).getTime(),sd+D],all:[0,9e15],cust:[ld1?new Date(ld1).getTime():0,ld2?new Date(ld2).getTime()+D:9e15]})[lr]}
+const inR=t=>{const[a,b]=rng();return t>=a&&t<b},psOf=o=>o.status=="paid"?"Paid":o.status=="cancelled"?"Cancelled":"Unpaid",dd=t=>new Date(t).toLocaleDateString(),comp=o=>o.status=="paid"?"Completed":o.status=="cancelled"?"Cancelled":o.ks=="served"?"Served, awaiting payment":"In progress";
+const salesRows=all=>{const s=lq.toLowerCase();return S.orders.filter(o=>(all||inR(o.time))&&(!s||("#"+o.id+" "+o.table+" "+psOf(o)+" "+(o.staff||"")+" "+(o.pay||"")).toLowerCase().includes(s))).sort((a,b)=>b.time-a.time)};
+const jrRows=all=>{const s=lq.toLowerCase();return S.jr.filter(j=>(all||inR(j.time))&&(!s||("#"+j.oid+" "+j.table+" "+j.desc+" "+j.pay+" "+j.ps).toLowerCase().includes(s))).sort((a,b)=>b.time-a.time)};
+const dl=(name,rows)=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+rows.map(r=>r.map(c=>'"'+String(c??"").replace(/"/g,'""')+'"').join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"}));a.download=name;a.click()},dstr=()=>new Date().toISOString().slice(0,10);
+function salesCsv(all){dl("sales-log-"+dstr()+".csv",[["Order ID","Date","Time","Table","Customer/Session","Items","Subtotal","Discount","Tax","Total","Payment Method","Payment Status","Staff","Status"]].concat(salesRows(all).map(o=>[o.id,dd(o.time),tm(o.time),o.table,o.sess||o.cust||"",o.items.map(i=>i.q+"x "+i.n).join("; "),o.sub,o.disc,o.tax.toFixed(2),o.total.toFixed(2),o.pay,psOf(o),o.staff||"",comp(o)])))}
+function jrCsv(){dl("journal-ledger-"+dstr()+".csv",[["Date","Time","Order ID","Table","Description","Debit","Credit","Amount","Payment Method","Payment Status","Notes","By"]].concat(jrRows().map(j=>[dd(j.time),tm(j.time),j.oid,j.table,j.desc,j.dr,j.cr,j.amt,j.pay,j.ps,j.notes,j.by])))}
+const cbs=on=>`style="width:auto;padding:0 12px;height:30px;${on?"":"background:var(--cd);color:var(--tx)"}"`;
+function pLog(){const rows=salesRows();
+ const tS=`<table class="t"><tr><th>Date</th><th>Time</th><th>Order</th><th>Table</th><th>Session</th><th>Total</th><th>Method</th><th>Payment</th><th>Staff</th><th>Status</th></tr>${rows.map(o=>`<tr style="cursor:pointer;${lsel==o.id?"font-weight:700":""}" onclick="lsel=${lsel==o.id?"null":o.id};draw()"><td>${dd(o.time)}</td><td>${tm(o.time)}</td><td>#${o.id}</td><td>${esc(o.table)}</td><td>${esc((o.sess||o.cust||"-").slice(0,8))}</td><td>${f(o.total)}</td><td>${o.pay||"-"}</td><td>${psOf(o)}</td><td>${esc(o.staff||"-")}</td><td>${comp(o)}</td></tr>${lsel==o.id?`<tr><td colspan="10" style="white-space:normal;background:var(--cd)">${o.items.map(i=>`${i.q}× ${esc(i.n)} (${f(i.p*i.q)})`).join(", ")}<br>Subtotal ${f(o.sub)} · Discount ${f(o.disc)} · Tax ${f(o.tax)} · <b>Grand total ${f(o.total)}</b>${o.notes?"<br>📝 "+esc(o.notes):""}</td></tr>`:""}`).join("")||'<tr><td colspan="10">No records</td></tr>'}</table>`;
+ const tJ=`<table class="t"><tr><th>Date</th><th>Time</th><th>Order</th><th>Table</th><th>Description</th><th>Debit</th><th>Credit</th><th>Amount</th><th>Method</th><th>Status</th><th>Notes</th></tr>${jrRows().map(j=>`<tr><td>${dd(j.time)}</td><td>${tm(j.time)}</td><td>#${j.oid}</td><td>${esc(j.table)}</td><td>${esc(j.desc)}</td><td>${esc(j.dr)}</td><td>${esc(j.cr)}</td><td>${f(j.amt)}</td><td>${j.pay||"-"}</td><td>${j.ps}</td><td>${esc(j.notes)}</td></tr>`).join("")||'<tr><td colspan="11">No entries</td></tr>'}</table>`;
+ return`<b style="font-size:22px">Sales Log & Journal</b><div class="rw" style="justify-content:flex-start;flex-wrap:wrap;margin:8px 0">${[["sales","📒 Sales Log"],["jour","📘 Journal Ledger"]].map(([k,t])=>`<button class="qb" ${cbs(lt==k)} onclick="lt='${k}';draw()">${t}</button>`).join("")}</div>
+ <div class="rw" style="justify-content:flex-start;flex-wrap:wrap">${[["today","Today"],["yest","Yesterday"],["week","This Week"],["month","This Month"],["cust","Custom"],["all","All"]].map(([k,t])=>`<button class="qb" ${cbs(lr==k)} onclick="lr='${k}';draw()">${t}</button>`).join("")}${lr=="cust"?`<input type="date" style="width:140px" value="${ld1}" onchange="ld1=this.value;draw()"><input type="date" style="width:140px" value="${ld2}" onchange="ld2=this.value;draw()">`:""}</div>
+ <div class="rw"><input placeholder="Search order ID, table, status, staff..." value="${esc(lq)}" onchange="lq=this.value;draw()"><button class="bt" style="width:150px;margin:0" onclick="${lt=="sales"?"salesCsv()":"jrCsv()"}">⬇ Export CSV</button></div><div class="pn" style="overflow-x:auto">${lt=="sales"?tS:tJ}</div>`}
+function custMode(){$("#sb").style.display="none";$("#lgn").style.display="none";const mn=$("#mn"),W=window;
+ if(!W.supabase||!CFG.url){mn.innerHTML='<div class="pn"><h3>Ordering is unavailable right now. Please ask our staff.</h3></div>';return}
+ const cl=supabase.createClient(CFG.url,CFG.key),ses=localStorage.wcs||(localStorage.wcs=rnd());let M=[],C={},cg="All",ds=null,nt="";
+ const R=()=>{const cs=["All",...new Set(M.map(m=>m.category))],L=M.filter(m=>cg=="All"||m.category==cg),ids=Object.keys(C),sub=M.reduce((s,m)=>s+m.price*(C[m.id]||0),0);
+  if(ds){mn.innerHTML=`<div class="pn" style="text-align:center;max-width:420px;margin:30px auto"><div style="font-size:60px">✅</div><h2>Order Submitted Successfully</h2><p style="margin:10px 0">Your order has been sent to the kitchen.</p><p>Table: <b>${esc(CT)}</b></p><p>Order Number: <b>#${ds.order_no}</b></p><p>Status: <b id="os">Sent to kitchen</b></p><p style="margin-top:10px;color:var(--mu)">Please wait while our staff prepares your order.</p><button class="bt s" onclick="location.reload()">Order more</button></div>`;return}
+  mn.innerHTML=`<div style="max-width:560px;margin:auto"><h2>☕ Wednesday Cafe · Table ${esc(CT)}</h2><div class="rw" style="justify-content:flex-start;overflow-x:auto;margin:8px 0">${cs.map((c,i)=>`<button class="qb" ${cbs(cg==c)} onclick="cgs(${i})">${esc(c)}</button>`).join("")}</div>
+  ${L.map(m=>`<div class="pn rw"><span style="font-size:30px">${m.emoji||"🍴"}</span><span style="flex:1"><b>${esc(m.name)}</b><br><small>${f(m.price)}</small></span><span><button class="qb" onclick="cq(${m.id},-1)">−</button> ${C[m.id]||0} <button class="qb" onclick="cq(${m.id},1)">+</button></span></div>`).join("")||"<p>Menu is empty.</p>"}
+  ${ids.length?`<div class="pn"><b>Your order</b>${ids.map(id=>{const m=M.find(x=>x.id==id);return`<div class="rw"><span>${esc(m.name)} × ${C[id]}</span><b>${f(m.price*C[id])}</b></div>`}).join("")}<div class="rw"><b>Subtotal</b><b>${f(sub)}</b></div><small style="color:var(--mu)">Taxes are added at billing.</small><textarea id="cn" rows="2" maxlength="200" placeholder="Notes / special instructions" style="margin-top:8px" onchange="snt(this.value)">${esc(nt)}</textarea><button class="bt" onclick="cp()">Place order</button></div>`:""}</div>`};
+ W.snt=v=>nt=v;W.cgs=i=>{cg=["All",...new Set(M.map(m=>m.category))][i];R()};W.cq=(id,d)=>{C[id]=Math.max(0,(C[id]||0)+d);if(!C[id])delete C[id];R()};
+ W.cp=async()=>{const el=$("#cn");if(el)nt=el.value;const{data,error}=await cl.rpc("place_order",{p_table:CT,p_token:CK,p_session:ses,p_items:Object.entries(C).map(([id,q])=>({id:+id,q})),p_notes:nt.slice(0,200)});if(error){alert("Could not place order: "+error.message);return}ds=data;R();
+  setInterval(async()=>{const r=await cl.rpc("get_order",{p_id:ds.id,p_session:ses}),s=r.data&&r.data.status,el=$("#os");if(s&&el)el.textContent=({received:"Received by staff",preparing:"Being prepared",served:"Served",paid:"Paid. Thank you!",cancelled:"Cancelled",new:"Sent to kitchen"})[s]||s},8000)};
+ mn.innerHTML="<p>Loading menu...</p>";cl.from("menu_items").select("*").order("category").then(r=>{M=r.data||[];R()})}
 function draw(){document.body.classList.toggle("dark",!!S.cfg.dark);document.body.style.fontSize=S.cfg.fs+"px";const u=me();$("#lgn").style.display=u?"none":"flex";if(!u)return;
  $("#sb").innerHTML=`<div class="lg">☕ Wednesday <span>Cafe</span></div>`+NV.map(([k,i,t])=>`${k=="note"?'<div class="ot" style="font-size:11px;margin:12px 12px 2px;opacity:.6">Others</div>':""}<div class="nv ${pg==k?"on":""}" onclick="go('${k}')"><span>${i}</span>${t}${k=="note"&&S.nu?`<span class="bd">${S.nu}</span>`:""}</div>`).join("")+`<div class="pf"><div style="font-size:26px">👤</div><b>${esc(u.name)}</b><br>${u.role}</div>`;
- $("#mn").innerHTML=({dash:pDash,food:pFood,msg:pMsg,bill:pBill,set:pSet,note:pNote,help:pHelp})[pg]()}
-draw();if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+ $("#mn").innerHTML=({dash:pDash,food:pFood,msg:pMsg,bill:pBill,log:pLog,set:pSet,note:pNote,help:pHelp})[pg]()}
+if(CT)custMode();else{draw();boot()}if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script></body></html>
